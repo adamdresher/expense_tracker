@@ -9,7 +9,7 @@ def newline
   puts
 end
 
-def help
+def display_help
   puts <<~MENU
     An expense recording system
 
@@ -23,7 +23,7 @@ def help
   MENU
 end
 
-def list
+def display_list
   results = DB.exec("SELECT * FROM expenses ORDER BY created_on;")
   col1, col2, col3, col4 = results.fields
 
@@ -41,19 +41,10 @@ end
 newline
 command = ARGV.shift
 
-if command
-  method(command.to_sym).call
+case command
+when 'list'
+  display_list
 else
-  help
+  display_help
 end
-
-# alternative for displaying records
-# result.each do |tuple|
-#   columns = [tuple['id'].rjust(4),
-#              tuple['created_on'].rjust(20),
-#              tuple['amount'].rjust(10),
-#              tuple['memo']]
-#
-#   puts columns.join(' | ')
-# end
 
