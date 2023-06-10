@@ -1,0 +1,59 @@
+#! /usr/bin/env ruby
+
+require 'pg'
+
+DB = PG.connect(dbname: 'expenses')
+
+# helper methods
+def newline
+  puts
+end
+
+def help
+  puts <<~MENU
+    An expense recording system
+
+    Commands:
+
+      add AMOUNT MEMO  record a new expense
+      clear            delete all expenses
+      list             list all expenses
+      delete NUMBER    remove expense with id NUMBER
+      search QUERY     list expenses with a matching QUERY field (use quotations for multi-word queries)
+  MENU
+end
+
+def list
+  results = DB.exec("SELECT * FROM expenses ORDER BY created_on;")
+  col1, col2, col3, col4 = results.fields
+
+  # displays column names
+  puts sprintf(' %-4s | %-20s | %-10s | %-s', col1, col4, col2, col3)
+  puts "-" * 80
+  # displays records
+  results.each do |record|
+    val1, val2, val3, val4 = record.values
+    puts sprintf(' %-4s | %-20s | %-10s | %-s', val1, val4, val2, val3)
+  end
+end
+
+# program starts
+newline
+command = ARGV.shift
+
+if command
+  method(command.to_sym).call
+else
+  help
+end
+
+# alternative for displaying records
+# result.each do |tuple|
+#   columns = [tuple['id'].rjust(4),
+#              tuple['created_on'].rjust(20),
+#              tuple['amount'].rjust(10),
+#              tuple['memo']]
+#
+#   puts columns.join(' | ')
+# end
+
