@@ -20,7 +20,7 @@ require 'pg'
       error_message = validate_new_expense(options)
       abort error_message if error_message
 
-      @app.add_expense(options)
+      @app.add_expense(*options)
       puts "The expense has been added."
     when 'search'
       error_message = validate_search(options)
@@ -51,14 +51,13 @@ require 'pg'
     when (3...)
       "Memos with multiple words must be wrapped with quotation marks (\" \")."
     else
-      if options.first != options.first.to_f.to_s
+      if options.first.to_f <= 0
         "The amount must be entered first (as digits)."
       end
     end
   end
 
   def validate_search(options)
-    # display error message if query is multiple words without quotation marks
     case options.size
     when 0
       "You must provide a search query."
@@ -78,14 +77,14 @@ end
     display_expenses(results)
   end
 
-  def add_expense(options)
+  def add_expense(amount, memo)
     sql = "INSERT INTO expenses (amount, memo) VALUES ($1, $2);"
-    @connection.exec_params(sql, [options.first.to_f, options.last])
+    @connection.exec_params(sql, [amount.to_f, memo])
   end
 
-  def search_expenses(options)
+  def search_expenses(query)
     sql = "SELECT * FROM expenses WHERE memo ILIKE $1;"
-    results = @connection.exec_params(sql, ['%' + options.first + '%'])
+    results = @connection.exec_params(sql, ['%' + query.first + '%'])
     display_expenses(results)
   end
 
@@ -96,8 +95,6 @@ end
   def clear
     # delete all expenses
   end
-
-  private
 
   def display_expenses(table)
     # column name
