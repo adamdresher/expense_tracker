@@ -27,6 +27,12 @@ require 'pg'
       abort error_message if error_message
 
       @app.search_expenses(options)
+    when 'delete'
+      error_message = validate_id(options)
+      abort error_message if error_message
+
+      puts "The following expense has been deleted:"
+      @app.delete_expense(options)
     end
   end
 
@@ -57,12 +63,29 @@ require 'pg'
     end
   end
 
-  def validate_search(options)
-    case options.size
+  def validate_search(query)
+    case query.size
     when 0
       "You must provide a search query."
     when (2..)
       "Memos with multiple words must be wrapped with quotation marks (\" \")."
+    end
+  end
+
+  def validate_id(id)
+    case id.size
+    when 0
+      "You must provide an id."
+    when (2..)
+      "You must only provide an 'id' number."
+    when 1
+      id = id.first.to_i
+
+      if id <= 0
+        "You must provide a positive number." 
+      elsif !@app.existing_ids.include?(id.to_s)
+        "There is no expense with the id '#{id}'."
+      end
     end
   end
 end
@@ -89,7 +112,9 @@ end
   end
 
   def delete_expense(id)
-    # delete expense with id
+    results = @connection.exec("SELECT * FROM expenses WHERE id = #{id.first.to_i};")
+    @connection.exec("DELETE FROM expenses WHERE id = #{id.first.to_i};")
+    display_expenses(results)
   end
 
   def clear
@@ -106,6 +131,10 @@ end
       id, amount, memo, date = record.values
       puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
     end
+  end
+
+  def existing_ids
+    @connection.exec("SELECT id FROM expenses;").values.flatten
   end
  end
 
