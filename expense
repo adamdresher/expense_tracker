@@ -15,7 +15,7 @@ require 'pg'
 
     case command
     when 'list'
-      @app.list_expenses()
+      @app.list_expenses
     when 'add'
       error_message = validate_new_expense(options)
       abort error_message if error_message
@@ -73,18 +73,9 @@ end
     @connection = PG.connect(dbname: 'expenses')
   end
 
-  def list_expenses(results = nil)
+  def list_expenses
     results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
-    id, amount, memo, date = results.fields
-
-    # column name
-    puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
-    puts "-" * 80
-    # records
-    results.each do |record|
-      id, amount, memo, date = record.values
-      puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
-    end
+    display_expenses(results)
   end
 
   def add_expense(options)
@@ -95,13 +86,26 @@ end
   def search_expenses(options)
     sql = "SELECT * FROM expenses WHERE memo ILIKE $1;"
     results = @connection.exec_params(sql, ['%' + options.first + '%'])
-    id, amount, memo, date = results.fields
-    
+    display_expenses(results)
+  end
+
+  def delete_expense(id)
+    # delete expense with id
+  end
+
+  def clear
+    # delete all expenses
+  end
+
+  private
+
+  def display_expenses(table)
     # column name
+    id, amount, memo, date = table.fields
     puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
     puts "-" * 80
     # records
-    results.each do |record|
+    table.each do |record|
       id, amount, memo, date = record.values
       puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
     end
