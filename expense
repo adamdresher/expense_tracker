@@ -2,49 +2,158 @@
 
 require 'pg'
 
-DB = PG.connect(dbname: 'expenses')
+ class CLI
+  def initialize
+    @app = ExpenseData.new
+  end
 
-# helper methods
-def newline
-  puts
-end
+  def run
+    newline
+    return display_help if ARGV.empty?
 
-def display_help
-  puts <<~MENU
-    An expense recording system
+    command = ARGV.shift
+    options = ARGV
 
-    Commands:
+    case command
+    when 'list'
+      @app.list_expenses
+    when 'add'
+      error_message = validate_new_expense(options)
+      abort error_message if error_message
 
-      add AMOUNT MEMO  record a new expense
-      clear            delete all expenses
-      list             list all expenses
-      delete NUMBER    remove expense with id NUMBER
-      search QUERY     list expenses with a matching QUERY field (use quotations for multi-word queries)
-  MENU
-end
+      @app.add_expense(options)
+      puts "The expense has been added."
+    end
+  end
 
-def display_list
-  results = DB.exec("SELECT * FROM expenses ORDER BY created_on;")
-  col1, col2, col3, col4 = results.fields
+  def newline
+    puts
+  end
 
-  # displays column names
-  puts sprintf(' %-4s | %-20s | %-10s | %-s', col1, col4, col2, col3)
-  puts "-" * 80
-  # displays records
-  results.each do |record|
-    val1, val2, val3, val4 = record.values
-    puts sprintf(' %-4s | %-20s | %-10s | %-s', val1, val4, val2, val3)
+  def display_help
+    puts <<~MENU
+      An expense recording system
+
+      Commands:
+
+        add AMOUNT MEMO  record a new expense
+        clear            delete all expenses
+        list             list all expenses
+        delete NUMBER    remove expense with id NUMBER
+        search QUERY     list expenses with a matching QUERY field (use quotations for multi-word queries)
+    MENU
+  end
+
+  def validate_new_expense(options)
+    case options.size
+    when (0...2)
+      "You must provide an amount and memo."
+    when (3...)
+      "Memos must be wrapped with quotation marks (\" \")."
+    else
+      if options.first != options.first.to_f.to_s
+        "The amount must be entered first (as digits)."
+      end
+    end
   end
 end
 
-# program starts
-newline
-command = ARGV.shift
+ class ExpenseData
+  def initialize
+    @connection = PG.connect(dbname: 'expenses')
+  end
 
-case command
-when 'list'
-  display_list
-else
-  display_help
-end
+  def list_expenses
+    results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
+    col1, col2, col3, col4 = results.fields
+
+    # displays column names
+    puts sprintf(' %-4s | %-20s | %-10s | %-s', col1, col4, col2, col3)
+    puts "-" * 80
+    # displays records
+    results.each do |record|
+      val1, val2, val3, val4 = record.values
+      puts sprintf(' %-4s | %-20s | %-10s | %-s', val1, val4, val2, val3)
+    end
+  end
+
+  def add_expense(options)
+    sql = "INSERT INTO expenses (amount, memo) VALUES ($1, $2);"
+    @connection.exec_params(sql, [options.first.to_f, options.last])
+  end
+ end
+
+# program starts
+CLI.new.run
+
+# DB = PG.connect(dbname: 'expenses')
+
+# # helper methods
+# def newline
+#   puts
+# end
+# 
+# def validate_new_expense(options)
+#   case options.size
+#   when (0...2)
+#     "You must provide an amount and memo."
+#   when (3...)
+#     "Memos must be wrapped with quotation marks (\" \")."
+#   else
+#     if options.first != options.first.to_f.to_s
+#       "The amount must be entered first (as digits)."
+#     end
+#   end
+# end
+# 
+# def display_help
+#   puts <<~MENU
+#     An expense recording system
+# 
+#     Commands:
+# 
+#       add AMOUNT MEMO  record a new expense
+#       clear            delete all expenses
+#       list             list all expenses
+#       delete NUMBER    remove expense with id NUMBER
+#       search QUERY     list expenses with a matching QUERY field (use quotations for multi-word queries)
+#   MENU
+# end
+# 
+# def list_expenses
+#   results = DB.exec("SELECT * FROM expenses ORDER BY created_on;")
+#   col1, col2, col3, col4 = results.fields
+# 
+#   # displays column names
+#   puts sprintf(' %-4s | %-20s | %-10s | %-s', col1, col4, col2, col3)
+#   puts "-" * 80
+#   # displays records
+#   results.each do |record|
+#     val1, val2, val3, val4 = record.values
+#     puts sprintf(' %-4s | %-20s | %-10s | %-s', val1, val4, val2, val3)
+#   end
+# end
+# 
+# def add_expense(options)
+#   sql = "INSERT INTO expenses (amount, memo) VALUES ($1, $2);"
+#   DB.exec_params(sql, [options.first.to_f, options.last])
+# end
+# 
+# # program starts
+# newline
+# command = ARGV.shift
+# options = ARGV
+# 
+# case command
+# when 'list'
+#   list_expenses
+# when 'add'
+#   error_message = validate_new_expense(options)
+#   abort error_message if error_message
+# 
+#   add_expense(options)
+#   puts "The expense has been added."
+# else
+#   display_help
+# end
 
