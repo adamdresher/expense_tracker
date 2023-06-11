@@ -15,13 +15,18 @@ require 'pg'
 
     case command
     when 'list'
-      @app.list_expenses
+      @app.list_expenses()
     when 'add'
       error_message = validate_new_expense(options)
       abort error_message if error_message
 
       @app.add_expense(options)
       puts "The expense has been added."
+    when 'search'
+      error_message = validate_search(options)
+      abort error_message if error_message
+
+      @app.search_expenses(options)
     end
   end
 
@@ -44,11 +49,21 @@ require 'pg'
     when (0...2)
       "You must provide an amount and memo."
     when (3...)
-      "Memos must be wrapped with quotation marks (\" \")."
+      "Memos with multiple words must be wrapped with quotation marks (\" \")."
     else
       if options.first != options.first.to_f.to_s
         "The amount must be entered first (as digits)."
       end
+    end
+  end
+
+  def validate_search(options)
+    # display error message if query is multiple words without quotation marks
+    case options.size
+    when 0
+      "You must provide a search query."
+    when (2..)
+      "Memos with multiple words must be wrapped with quotation marks (\" \")."
     end
   end
 end
@@ -58,11 +73,11 @@ end
     @connection = PG.connect(dbname: 'expenses')
   end
 
-  def list_expenses
+  def list_expenses(results = nil)
     results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
     id, amount, memo, date = results.fields
 
-    # column names
+    # column name
     puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
     puts "-" * 80
     # records
@@ -75,6 +90,21 @@ end
   def add_expense(options)
     sql = "INSERT INTO expenses (amount, memo) VALUES ($1, $2);"
     @connection.exec_params(sql, [options.first.to_f, options.last])
+  end
+
+  def search_expenses(options)
+    sql = "SELECT * FROM expenses WHERE memo ILIKE $1;"
+    results = @connection.exec_params(sql, ['%' + options.first + '%'])
+    id, amount, memo, date = results.fields
+    
+    # column name
+    puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
+    puts "-" * 80
+    # records
+    results.each do |record|
+      id, amount, memo, date = record.values
+      puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
+    end
   end
  end
 
