@@ -65,15 +65,15 @@ end
 
   def list_expenses
     results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
-    col1, col2, col3, col4 = results.fields
+    id, amount, memo, date = results.fields
 
     # displays column names
-    puts sprintf(' %-4s | %-20s | %-10s | %-s', col1, col4, col2, col3)
+    puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
     puts "-" * 80
     # displays records
     results.each do |record|
-      val1, val2, val3, val4 = record.values
-      puts sprintf(' %-4s | %-20s | %-10s | %-s', val1, val4, val2, val3)
+      id, amount, memo, date = record.values
+      puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
     end
   end
 
