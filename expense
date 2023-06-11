@@ -11,7 +11,8 @@ require 'pg'
     puts
     return display_help if ARGV.empty?
 
-    command, *options = ARGV
+    command = ARGV.shift
+    *options = ARGV
 
     case command
     when 'list'
@@ -26,13 +27,33 @@ require 'pg'
       error_message = validate_search(options)
       abort error_message if error_message
 
-      @app.search_expenses(options)
+      @app.search_expenses(options.first)
     when 'delete'
       error_message = validate_id(options)
       abort error_message if error_message
 
       puts "The following expense has been deleted:"
-      @app.delete_expense(options)
+      @app.delete_expense(options.first)
+    when 'clear'
+      abort "'clear' does not accept any options." if !options.empty?
+
+      loop do
+        puts "This will remove all expenses.  Are you sure? (y/n)"
+        answer = STDIN.gets.chomp
+
+        case answer
+        when 'y'
+          @app.clear_expenses
+          puts "All expenses have been deleted."
+          break
+        when 'n'
+          break
+        else
+          puts "'#{answer}' is not valid command."
+        end
+      end
+    else
+      puts "Please enter a valid command."
     end
   end
 
@@ -96,7 +117,9 @@ end
   end
 
   def list_expenses
-    results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
+    sql = "SELECT * FROM expenses ORDER BY created_on;"
+    results = @connection.exec(sql)
+
     display_expenses(results)
   end
 
@@ -107,18 +130,24 @@ end
 
   def search_expenses(query)
     sql = "SELECT * FROM expenses WHERE memo ILIKE $1;"
-    results = @connection.exec_params(sql, ['%' + query.first + '%'])
+    results = @connection.exec_params(sql, ['%' + query + '%'])
+
     display_expenses(results)
   end
 
   def delete_expense(id)
-    results = @connection.exec("SELECT * FROM expenses WHERE id = #{id.first.to_i};")
-    @connection.exec("DELETE FROM expenses WHERE id = #{id.first.to_i};")
+    sql = "SELECT * FROM expenses WHERE id = $1;"
+    results = @connection.exec(sql, [id])
+    sql = "DELETE FROM expenses WHERE id = $1;"
+    @connection.exec_params(sql, [id])
+
     display_expenses(results)
   end
 
-  def clear
+  def clear_expenses
     # delete all expenses
+    sql = "DELETE FROM expenses;"
+    @connection.exec_params(sql)
   end
 
   def display_expenses(table)
