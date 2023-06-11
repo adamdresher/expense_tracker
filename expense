@@ -1,6 +1,7 @@
 #! /usr/bin/env ruby
 
 require 'pg'
+require 'io/console'
 
  class CLI
   def initialize
@@ -37,21 +38,7 @@ require 'pg'
     when 'clear'
       abort "'clear' does not accept any options." if !options.empty?
 
-      loop do
-        puts "This will remove all expenses.  Are you sure? (y/n)"
-        answer = STDIN.gets.chomp
-
-        case answer
-        when 'y'
-          @app.clear_expenses
-          puts "All expenses have been deleted."
-          break
-        when 'n'
-          break
-        else
-          puts "'#{answer}' is not valid command."
-        end
-      end
+      confirm_answer_before_delete
     else
       puts "Please enter a valid command."
     end
@@ -109,6 +96,24 @@ require 'pg'
       end
     end
   end
+
+  def confirm_answer_before_delete
+    loop do
+      puts "This will remove all expenses.  Are you sure? (y/n)"
+      response = STDIN.getch
+
+      case response
+      when 'y'
+        @app.delete_all_expenses
+        puts "All expenses have been deleted."
+        break
+      when 'n'
+        break
+      else
+        puts "'#{response}' is not valid command."
+      end
+    end
+  end
 end
 
  class ExpenseData
@@ -144,7 +149,7 @@ end
     display_expenses(results)
   end
 
-  def clear_expenses
+  def delete_all_expenses
     # delete all expenses
     sql = "DELETE FROM expenses;"
     @connection.exec_params(sql)
@@ -152,13 +157,13 @@ end
 
   def display_expenses(table)
     # column name
-    id, amount, memo, date = table.fields
-    puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
-    puts "-" * 80
+    # id, amount, memo, date = table.fields
+    # puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
+    # puts "-" * 80
     # records
     table.each do |record|
       id, amount, memo, date = record.values
-      puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
+      puts sprintf(' %-4s | %-14s | %10s | %-s', id, date, "$#{amount}", memo)
     end
   end
 
