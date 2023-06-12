@@ -52,6 +52,9 @@ require 'io/console'
       abort "'clear' does not accept any options." if !options.empty?
 
       confirm_answer_before_delete
+    # tests ExpenseData#setup_schema
+    # when 'drop'
+    #   @app.drop_table
     else
       puts " Please enter a valid command."
     end
@@ -132,6 +135,21 @@ end
  class ExpenseData
   def initialize
     @connection = PG.connect(dbname: 'expenses')
+    setup_schema
+  end
+
+  def setup_schema
+    sql =<<~SQL
+      SELECT COUNT(*)
+        FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_name = 'expenses';
+    SQL
+    schema_count = @connection.exec(sql).values.flatten.join.to_i
+
+    if schema_count.zero?
+      @connection.exec(File.read('schema.sql'))
+    end
   end
 
   def list_expenses
@@ -166,6 +184,13 @@ end
   def delete_all_expenses
     @connection.exec("DELETE FROM expenses;")
   end
+
+  # tests ExpenseData#setup_schema
+  # def drop_table
+  #   @connection.exec("DROP TABLE expenses;")
+
+  #   puts " The table has been deleted."
+  # end
 
   def display_expenses(expenses)
     expenses.each do |record|
