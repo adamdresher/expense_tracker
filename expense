@@ -137,7 +137,8 @@ end
   def list_expenses
     results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
 
-    display_expenses_with_labels(results)
+    display_count(results)
+    display_expenses(results) if results.ntuples > 0
   end
 
   def add_expense(amount, memo)
@@ -149,11 +150,8 @@ end
     sql = "SELECT * FROM expenses WHERE memo ILIKE $1;"
     results = @connection.exec_params(sql, ['%' + query + '%'])
 
-    if results.ntuples.zero?
-      display_count(results)
-    else
-      display_expenses_with_labels(results) 
-    end
+    display_count(results)
+    display_expenses(results) if results.ntuples > 0
   end
 
   def delete_expense(id)
@@ -169,17 +167,17 @@ end
     @connection.exec("DELETE FROM expenses;")
   end
 
-  def display_expenses_with_labels(expenses)
-    display_count(expenses)
-    display_expenses(expenses)
-    display_total_amount(expenses)
-  end
-
   def display_expenses(expenses)
     expenses.each do |record|
       id, amount, memo, date = record.values
       puts format('  %-4s | %-14s | %10s | %-s', id, date, "$#{amount}", memo)
     end
+
+    puts ' ' + "-" * 79
+
+    amounts = expenses.field_values('amount').map(&:to_f)
+    total = format('%.2f', amounts.sum)
+    puts " Total #{format('%29s', '$' + total)}"
   end
 
   def display_count(expenses)
@@ -191,16 +189,6 @@ end
          else
            " There are #{expenses.ntuples} expenses."
          end)
-  end
-
-  def display_total_amount(expenses)
-    amounts = expenses.field_values('amount').map(&:to_f)
-    total = format('%.2f', amounts.sum)
-
-    horizontal_line = ' ' + "-" * 79
-    total = format('  %-s     %24s', 'Total', "$#{total}")
-
-    puts "#{horizontal_line}\n#{total}"
   end
 
   def existing_ids
