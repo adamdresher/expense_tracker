@@ -12,6 +12,19 @@ require 'io/console'
     puts
     return display_help if ARGV.empty?
 
+    # run error checks here
+    # if command is list or clear
+    #   no options are passed
+    # elsif delete
+    #   1 option passed
+    #   option is an Integer
+    # elsif add
+    #   2 options passed
+    #   first option is a Float
+    # if error messages gathered
+    #   output all error messages
+    #   end program
+
     command = ARGV.shift
     *options = ARGV
 
@@ -23,7 +36,7 @@ require 'io/console'
       abort error_message if error_message
 
       @app.add_expense(*options)
-      puts "The expense has been added."
+      puts " The expense has been added."
     when 'search'
       error_message = validate_search(options)
       abort error_message if error_message
@@ -33,40 +46,40 @@ require 'io/console'
       error_message = validate_id(options)
       abort error_message if error_message
 
-      puts "The following expense has been deleted:"
+      puts " The following expense has been deleted:"
       @app.delete_expense(options.first)
     when 'clear'
       abort "'clear' does not accept any options." if !options.empty?
 
       confirm_answer_before_delete
     else
-      puts "Please enter a valid command."
+      puts " Please enter a valid command."
     end
   end
 
   def display_help
     puts <<~MENU
-      An expense recording system
+      \ An expense recording system
 
-      Commands:
+       Commands:
 
-        add AMOUNT MEMO  record a new expense
-        clear            delete all expenses
-        list             list all expenses
-        delete NUMBER    remove expense with id NUMBER
-        search QUERY     list expenses with a matching QUERY field (use quotations for multi-word queries)
+         add AMOUNT MEMO  record a new expense
+         clear            delete all expenses
+         list             list all expenses
+         delete NUMBER    remove expense with id NUMBER
+         search QUERY     list expenses with a matching QUERY field (use quotations for multi-word queries)
     MENU
   end
 
   def validate_new_expense(options)
     case options.size
     when (0...2)
-      "You must provide an amount and memo."
+      " You must provide an amount and memo."
     when (3...)
-      "Memos with multiple words must be wrapped with quotation marks (\" \")."
+      " Memos with multiple words must be wrapped with quotation marks (\" \")."
     else
       if options.first.to_f <= 0
-        "The amount must be entered first (as digits)."
+        " The amount must be entered first (as digits)."
       end
     end
   end
@@ -74,23 +87,23 @@ require 'io/console'
   def validate_search(query)
     case query.size
     when 0
-      "You must provide a search query."
+      " You must provide a search query."
     when (2..)
-      "Memos with multiple words must be wrapped with quotation marks (\" \")."
+      " Memos with multiple words must be wrapped with quotation marks (\" \")."
     end
   end
 
   def validate_id(id)
     case id.size
     when 0
-      "You must provide an id."
+      " You must provide an id."
     when (2..)
-      "You must only provide an 'id' number."
+      " You must only provide an 'id' number."
     when 1
       id = id.first.to_i
 
       if id <= 0
-        "You must provide a positive number." 
+        " You must provide a positive number." 
       elsif !@app.existing_ids.include?(id.to_s)
         "There is no expense with the id '#{id}'."
       end
@@ -99,18 +112,18 @@ require 'io/console'
 
   def confirm_answer_before_delete
     loop do
-      puts "This will remove all expenses.  Are you sure? (y/n)"
+      puts " This will remove all expenses.  Are you sure? (y/n)"
       response = STDIN.getch
 
       case response
       when 'y'
         @app.delete_all_expenses
-        puts "All expenses have been deleted."
+        puts " All expenses have been deleted."
         break
       when 'n'
         break
       else
-        puts "'#{response}' is not valid command."
+        puts " '#{response}' is not valid command."
       end
     end
   end
@@ -122,10 +135,9 @@ end
   end
 
   def list_expenses
-    sql = "SELECT * FROM expenses ORDER BY created_on;"
-    results = @connection.exec(sql)
+    results = @connection.exec("SELECT * FROM expenses ORDER BY created_on;")
 
-    display_expenses(results)
+    display_expenses_with_labels(results)
   end
 
   def add_expense(amount, memo)
@@ -137,12 +149,16 @@ end
     sql = "SELECT * FROM expenses WHERE memo ILIKE $1;"
     results = @connection.exec_params(sql, ['%' + query + '%'])
 
-    display_expenses(results)
+    if results.ntuples.zero?
+      display_count(results)
+    else
+      display_expenses_with_labels(results) 
+    end
   end
 
   def delete_expense(id)
     sql = "SELECT * FROM expenses WHERE id = $1;"
-    results = @connection.exec(sql, [id])
+    results = @connection.exec_params(sql, [id])
     sql = "DELETE FROM expenses WHERE id = $1;"
     @connection.exec_params(sql, [id])
 
@@ -150,21 +166,41 @@ end
   end
 
   def delete_all_expenses
-    # delete all expenses
-    sql = "DELETE FROM expenses;"
-    @connection.exec_params(sql)
+    @connection.exec("DELETE FROM expenses;")
   end
 
-  def display_expenses(table)
-    # column name
-    # id, amount, memo, date = table.fields
-    # puts sprintf(' %-4s | %-20s | %-10s | %-s', id, date, amount, memo)
-    # puts "-" * 80
-    # records
-    table.each do |record|
+  def display_expenses_with_labels(expenses)
+    display_count(expenses)
+    display_expenses(expenses)
+    display_total_amount(expenses)
+  end
+
+  def display_expenses(expenses)
+    expenses.each do |record|
       id, amount, memo, date = record.values
-      puts sprintf(' %-4s | %-14s | %10s | %-s', id, date, "$#{amount}", memo)
+      puts format('  %-4s | %-14s | %10s | %-s', id, date, "$#{amount}", memo)
     end
+  end
+
+  def display_count(expenses)
+    puts (case expenses.ntuples
+         when 0
+           " There are no expenses."
+         when 1
+           " There is 1 expense."
+         else
+           " There are #{expenses.ntuples} expenses."
+         end)
+  end
+
+  def display_total_amount(expenses)
+    amounts = expenses.field_values('amount').map(&:to_f)
+    total = format('%.2f', amounts.sum)
+
+    horizontal_line = ' ' + "-" * 79
+    total = format('  %-s     %24s', 'Total', "$#{total}")
+
+    puts "#{horizontal_line}\n#{total}"
   end
 
   def existing_ids
