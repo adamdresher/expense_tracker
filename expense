@@ -12,45 +12,24 @@ require 'io/console'
     puts
     return display_help if ARGV.empty?
 
-    # run error checks here
-    # if command is list or clear
-    #   no options are passed
-    # elsif delete
-    #   1 option passed
-    #   option is an Integer
-    # elsif add
-    #   2 options passed
-    #   first option is a Float
-    # if error messages gathered
-    #   output all error messages
-    #   end program
-
     command = ARGV.shift
     *options = ARGV
+
+    error_messages = validate_commands(command, options)
+    return (puts error_messages) unless error_messages.nil?
 
     case command
     when 'list'
       @app.list_expenses
     when 'add'
-      error_message = validate_new_expense(options)
-      abort error_message if error_message
-
       @app.add_expense(*options)
       puts " The expense has been added."
     when 'search'
-      error_message = validate_search(options)
-      abort error_message if error_message
-
       @app.search_expenses(options.first)
     when 'delete'
-      error_message = validate_id(options)
-      abort error_message if error_message
-
       puts " The following expense has been deleted:"
       @app.delete_expense(options.first)
     when 'clear'
-      abort "'clear' does not accept any options." if !options.empty?
-
       confirm_answer_before_delete
     # tests ExpenseData#setup_schema
     # when 'drop'
@@ -74,20 +53,36 @@ require 'io/console'
     MENU
   end
 
-  def validate_new_expense(options)
-    case options.size
-    when (0...2)
-      " You must provide an amount and memo."
-    when (3...)
-      " Memos with multiple words must be wrapped with quotation marks (\" \")."
-    else
-      if options.first.to_f <= 0
-        " The amount must be entered first (as digits)."
-      end
+  def validate_commands(command, options)
+    case command
+    when 'clear', 'list'
+      ["'#{command}' does not accept any options."] unless options.empty?
+    when 'add'
+      [error_message_new_expense(options)]
+    when 'search'
+      [error_message_search(options)]
+    when 'delete'
+      [error_message_id(options)]
     end
   end
 
-  def validate_search(query)
+  def error_message_new_expense(options)
+    error_messages = []
+
+    error_messages <<
+      case options.size
+      when (0...2)
+        " You must provide an amount and memo."
+      when (3...)
+        " Memos with multiple words must be wrapped with quotation marks (\" \")."
+      end
+
+    error_messages << " The amount must be entered as digits." if options.first.to_f <= 0
+
+    error_messages
+  end
+
+  def error_message_search(query)
     case query.size
     when 0
       " You must provide a search query."
@@ -96,7 +91,7 @@ require 'io/console'
     end
   end
 
-  def validate_id(id)
+  def error_message_id(id)
     case id.size
     when 0
       " You must provide an id."
@@ -108,7 +103,7 @@ require 'io/console'
       if id <= 0
         " You must provide a positive number." 
       elsif !@app.existing_ids.include?(id.to_s)
-        "There is no expense with the id '#{id}'."
+        " There is no expense with the id '#{id}'."
       end
     end
   end
