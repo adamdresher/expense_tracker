@@ -31,9 +31,6 @@ require 'io/console'
       @app.delete_expense(options.first)
     when 'clear'
       confirm_answer_before_delete
-    # tests ExpenseData#setup_schema
-    # when 'drop'
-    #   @app.drop_table
     else
       puts " Please enter a valid command."
     end
@@ -179,13 +176,6 @@ end
   def delete_all_expenses
     @connection.exec("DELETE FROM expenses;")
   end
-
-  # tests ExpenseData#setup_schema
-  # def drop_table
-  #   @connection.exec("DROP TABLE expenses;")
-
-  #   puts " The table has been deleted."
-  # end
 
   def display_expenses(expenses)
     expenses.each do |record|
